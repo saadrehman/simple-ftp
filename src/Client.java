@@ -25,7 +25,7 @@ public class Client {
 		int sequence_num;
 		short checksum;
 		short type;
-		byte[] data = new byte[1000];//upper limit of data is MSS
+		byte[] data = new byte[mss];//upper limit of data is MSS
 		
 		private byte[] getSequenceNum(){
 			return ByteBuffer.allocate(4).putInt(this.sequence_num).array();
@@ -37,6 +37,10 @@ public class Client {
 		
 		private byte[] getType(){
 			return ByteBuffer.allocate(2).putShort(this.type).array();
+		}
+		
+		private String getData(){
+			return new String(data);
 		}
 	}
 	
@@ -63,42 +67,50 @@ public class Client {
 			p.sequence_num = i++;
 			p.type = 21845;		//Decimal equivalent of 0101010101010101
 			p.checksum = 21845;
-			p.data = chunk;
+			p.data = chunk.clone();
+			ByteBuffer.allocate(mss);
+			Arrays.fill(chunk, (byte)'\u001a');
 			packet_buffer.add(p);
 			//TODO Put in the checksum functionality
 		}
+		
+		System.out.println(new String(packet_buffer.getLast().data));
 		file_stream.close();
 		
 		////////////////////////////////////////////////////////////////////////////s
 		//Reading the file into packet_buffer complete now. 
-		// Sending packet by packet not starting. 
+		// Sending packet by packet 
 		
-		Packet p = packet_buffer.pop();
-		
-		// get a datagram socket
-        DatagramSocket socket = new DatagramSocket();
-
-        // send request
-        byte[] buf = new byte[mss + 8]; 
-        
-        System.arraycopy(p.getSequenceNum(), 0, buf, 0, 4);
-        System.arraycopy(p.getChecksum(), 0, buf, 4, 2);
-        System.arraycopy(p.getType(), 0, buf, 6, 2);
-        System.arraycopy(p.data, 0, buf, 8, mss);
-        
-        InetAddress address = InetAddress.getByName(server_host_name);
-        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
-        socket.send(packet);
-    
-        // get response
-        packet = new DatagramPacket(buf, buf.length);
-        socket.receive(packet);
-
-	    // display response
-        int received = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
-        System.out.println("Next Packet to Send: " + received);
-    
-        socket.close();
+		while(!packet_buffer.isEmpty()){
+			Packet p = packet_buffer.pop();
+			
+			// get a datagram socket
+	        DatagramSocket socket = new DatagramSocket();
+	
+	        // send request
+	        byte[] buf = new byte[mss + 8]; 
+	        
+	        System.arraycopy(p.getSequenceNum(), 0, buf, 0, 4);
+	        System.arraycopy(p.getChecksum(), 0, buf, 4, 2);
+	        System.arraycopy(p.getType(), 0, buf, 6, 2);
+	        System.arraycopy(p.data, 0, buf, 8, mss);
+	        
+	        InetAddress address = InetAddress.getByName(server_host_name);
+	        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
+	        socket.send(packet);
+	    
+	        // get response
+	        packet = new DatagramPacket(buf, buf.length);
+	        socket.receive(packet);
+	
+		    // display response
+	        int ack = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
+	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 4, 6)));
+	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 6, 8)));
+	        System.out.println("Next Packet to Send: " + ack);
+	    
+	        socket.close();
+		}
 
 		
 	}

@@ -15,7 +15,8 @@ public class Server {
 	protected boolean keepReceiving = true;
 	protected int expectedPacket;
 	LinkedList<String> receivedData = new LinkedList<String>();
-	short type = (short) 43690;
+	byte[] allzeroes = {0, 0};
+	byte[] type = {10, 10};
 
 	public Server() throws Exception {
 		socket = new DatagramSocket(7735);
@@ -25,7 +26,11 @@ public class Server {
 //			in = new BufferedReader(new FileReader("one-liners.txt"));
 //		} catch (FileNotFoundException e) {
 //			System.err.println("Could not open quote file. Serving time instead.");
-//		}
+//		}[
+	}
+	
+	private boolean matchChecksum(byte[] packet){
+		return true;
 	}
 	
 	public void startListening() {
@@ -43,20 +48,27 @@ public class Server {
 	                String data = new String(Arrays.copyOfRange(buf, 8, 8 + mss));
 	                
 	                System.out.println(sequenceNum);
-	                System.out.println(checksum);
+	                /*System.out.println(checksum);
 	                System.out.println(type);
 	                System.out.println(data);
-
-	                //if this is the expected packet
-	                if (sequenceNum  == expectedPacket){
+	                */
+	                	                
+	                //If this is the expected packet and the checksum is valid
+	                if (sequenceNum  == expectedPacket && matchChecksum(buf)){
+	                	//System.out.println("Received: " + data + " Buffer size now: " + receivedData.size());
+	                	
+	                	if (data.contains("\u001a")){
+	                		data = data.replaceAll("\\u001a", "");
+	                		//data = data.replace('\u001a', '\0');
+	                		keepReceiving = false;
+	                	}
 	                	receivedData.add(data);
 	                	expectedPacket++;
 	                }
-	                short allZeroes = 0;
 	                ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
 	                outputStream.write( ByteBuffer.allocate(4).putInt(this.expectedPacket).array() );
-	                outputStream.write( ByteBuffer.allocate(2).putShort(allZeroes).array() );
-	                outputStream.write( ByteBuffer.allocate(2).putShort(this.type).array() );
+	                outputStream.write( this.allzeroes );
+	                outputStream.write( this.type );
 
 	                buf = outputStream.toByteArray( );
 
@@ -65,6 +77,7 @@ public class Server {
 	                int port = packet.getPort();
 	                packet = new DatagramPacket(buf, buf.length, address, port);
 	                socket.send(packet);
+	                
 	            } catch (IOException e) {
 	                e.printStackTrace();
 			keepReceiving = false;
@@ -76,9 +89,36 @@ public class Server {
 	
 	
 	public static void main(String args[]) throws Exception	{
+		
+		if (args.length != 3) {
+		    System.out.println("Usage: java Server port# file-name p");
+		    return;
+		}
+		
 		Server server = new Server();
 		System.out.println("Server is up and running:-\n");
 		server.startListening();
+		server.writeAllDataToFile(args[1]);
+		
+	}
+
+	private void writeAllDataToFile(String filename) throws Exception {
+		
+		String content = "";
+		while(!receivedData.isEmpty()){
+			content = content + receivedData.pop();
+			System.out.println(content);
+		}
+		File file = new File(".//" + filename);
+		 
+		if (!file.exists()) { file.createNewFile();	}
+
+		FileWriter fw = new FileWriter(file.getAbsoluteFile());
+		BufferedWriter bw = new BufferedWriter(fw);
+		bw.write(content);
+		bw.close();
+
+		System.out.println("File is written.");
 		
 	}
 	
