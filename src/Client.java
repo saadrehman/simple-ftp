@@ -6,22 +6,26 @@ import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
 
-
-
-
-
-
 // The client is the sender in our system
 public class Client {
 
 	int mss;
 	int window_size;
-	int window_start;
-	int window_end;
+	int start;
+	int end;
 	int nextPacket;
+	long MAX_SEQ_NUMBER; //The maximum sequence number
 	LinkedList<Packet> packet_buffer = new LinkedList<Packet>();
 	
+	//TODO Remove Packet Class.
+	/* We don't need it because
+	 * sequence_num is the index of the element 
+	 * type is constant, 
+	 * checksum is calculated on the spot, no need to store it,
+	 * */
+	
 	private class Packet{
+		
 		int sequence_num;
 		short checksum;
 		short type;
@@ -38,28 +42,29 @@ public class Client {
 		private byte[] getType(){
 			return ByteBuffer.allocate(2).putShort(this.type).array();
 		}
-		
-		private String getData(){
-			return new String(data);
-		}
 	}
 	
 
 	
 	
 	public Client(int window_size,int mss)	{
-		window_start = 0;
-		window_end = window_size - 1;
+		start = 0;
+		end = window_size - 1;
 		this.mss = mss;
 		nextPacket = 0;
 	}
 	
 	public void rdt_send(String filename, String server_host_name) throws Exception	{
-		// Reading data from the file
+		readFileIntoBuffer(filename);
+		
+		sendPacket(server_host_name);
+	}
+
+	private void readFileIntoBuffer(String filename)
+			throws FileNotFoundException, IOException {
+		
 		InputStream file_stream = new FileInputStream(new File(filename));
-		
-		//ListIterator<Packet> packet_buffer_iterator = packet_buffer.listIterator();
-		
+		MAX_SEQ_NUMBER = ((new File(filename).length()) / mss);
 		byte[] chunk = new byte[mss]; //1 chunk of MSS bytes
 		int i = 0;
 		while(file_stream.read(chunk) != -1){
@@ -76,18 +81,23 @@ public class Client {
 		
 		System.out.println(new String(packet_buffer.getLast().data));
 		file_stream.close();
-		
-		////////////////////////////////////////////////////////////////////////////s
-		//Reading the file into packet_buffer complete now. 
-		// Sending packet by packet 
-		
-		while(!packet_buffer.isEmpty()){
-			Packet p = packet_buffer.pop();
+	}
+
+	private void sendPacket(String server_host_name) throws SocketException,
+			UnknownHostException, IOException {
+		while(nextPacket <= end){
+			
+			//ARQ
+			Packet p = packet_buffer.get(nextPacket);
+			if(nextPacket > start){
+				end = end + (nextPacket - start);
+				start = nextPacket;
+			}
 			
 			// get a datagram socket
 	        DatagramSocket socket = new DatagramSocket();
 	
-	        // send request
+	        // send packet
 	        byte[] buf = new byte[mss + 8]; 
 	        
 	        System.arraycopy(p.getSequenceNum(), 0, buf, 0, 4);
@@ -99,7 +109,7 @@ public class Client {
 	        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
 	        socket.send(packet);
 	    
-	        // get response
+	        // get ACK
 	        packet = new DatagramPacket(buf, buf.length);
 	        socket.receive(packet);
 	
@@ -107,12 +117,14 @@ public class Client {
 	        int ack = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
 	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 4, 6)));
 	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 6, 8)));
-	        System.out.println("Next Packet to Send: " + ack);
+	        //System.out.println("Next Packet to Send: " + ack);
+	        nextPacket = ack;
 	    
 	        socket.close();
+	        if (ack > MAX_SEQ_NUMBER){
+	        	break;
+	        }
 		}
-
-		
 	}
 	
 
@@ -124,7 +136,7 @@ public class Client {
 		}
 		
 		String server_host_name = args[0];
-		int server_port = Integer.valueOf(args[1]);
+		//int server_port = Integer.valueOf(args[1]);
 		String filename = ".//files//" + args[2];
 		int window_size = Integer.valueOf(args[3]);;
 		int mss = Integer.valueOf(args[4]); //bytes
@@ -135,7 +147,7 @@ public class Client {
 	
 
 		try {
-			cli.rdt_send(filename,server_host_name);
+			cli.rdt_send(filename, server_host_name);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

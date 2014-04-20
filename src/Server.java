@@ -47,8 +47,9 @@ public class Server {
 	                short type = new BigInteger(Arrays.copyOfRange(buf, 6, 8)).shortValue();
 	                String data = new String(Arrays.copyOfRange(buf, 8, 8 + mss));
 	                
+	                /*
 	                System.out.println(sequenceNum);
-	                /*System.out.println(checksum);
+	                System.out.println(checksum);
 	                System.out.println(type);
 	                System.out.println(data);
 	                */
@@ -107,8 +108,8 @@ public class Server {
 		String content = "";
 		while(!receivedData.isEmpty()){
 			content = content + receivedData.pop();
-			System.out.println(content);
 		}
+		//System.out.println(content);
 		File file = new File(".//" + filename);
 		 
 		if (!file.exists()) { file.createNewFile();	}
