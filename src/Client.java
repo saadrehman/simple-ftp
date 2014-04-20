@@ -1,7 +1,10 @@
 import java.io.*;
+import java.util.Arrays;
 import java.util.LinkedList;
+import java.math.BigInteger;
 //import java.util.ListIterator;
 import java.net.*;
+import java.nio.ByteBuffer;
 
 
 
@@ -23,6 +26,18 @@ public class Client {
 		short checksum;
 		short type;
 		byte[] data = new byte[1000];//upper limit of data is MSS
+		
+		private byte[] getSequenceNum(){
+			return ByteBuffer.allocate(4).putInt(this.sequence_num).array();
+		}
+		
+		private byte[] getChecksum(){
+			return ByteBuffer.allocate(2).putShort(this.checksum).array();
+		}
+		
+		private byte[] getType(){
+			return ByteBuffer.allocate(2).putShort(this.type).array();
+		}
 	}
 	
 
@@ -58,30 +73,29 @@ public class Client {
 		//Reading the file into packet_buffer complete now. 
 		// Sending packet by packet not starting. 
 		
-		//int port;
-		//InetAddress address;
-		//DatagramSocket socket = null;
-		//DatagramPacket packet;
-		//byte[] sendBuf = new byte[256];
-		
 		Packet p = packet_buffer.pop();
 		
-	       // get a datagram socket
+		// get a datagram socket
         DatagramSocket socket = new DatagramSocket();
 
-            // send request
-        byte[] buf = new byte[mss + 64]; 
-        buf = p.data;
+        // send request
+        byte[] buf = new byte[mss + 8]; 
+        
+        System.arraycopy(p.getSequenceNum(), 0, buf, 0, 4);
+        System.arraycopy(p.getChecksum(), 0, buf, 4, 2);
+        System.arraycopy(p.getType(), 0, buf, 6, 2);
+        System.arraycopy(p.data, 0, buf, 8, mss);
+        
         InetAddress address = InetAddress.getByName(server_host_name);
         DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
         socket.send(packet);
     
-            // get response
+        // get response
         packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
 
 	    // display response
-        String received = new String(packet.getData(), 0, packet.getLength());
+        int received = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
         System.out.println("Next Packet to Send: " + received);
     
         socket.close();
@@ -102,6 +116,7 @@ public class Client {
 		String filename = ".//files//" + args[2];
 		int window_size = Integer.valueOf(args[3]);;
 		int mss = Integer.valueOf(args[4]); //bytes
+		mss = 8;
 		
 		Client cli = new Client(window_size, mss);
 		System.out.println("Client is up and running!:\n");
