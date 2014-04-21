@@ -110,7 +110,7 @@ public class Client {
 	        
 	        InetAddress address = InetAddress.getByName(server_host_name);
 	        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
-	        System.out.println("SENT  Seq: "+p.sequence_num + ", Data: " + new String(p.data));
+	        //System.out.println("SENT  Seq: "+p.sequence_num);
 	        socket.send(packet);
 	    
 	        // get ACK
@@ -119,7 +119,7 @@ public class Client {
 	        	socket.receive(packet);
 	        } catch (SocketTimeoutException e) {
 	        	//resend data
-	        	System.out.println("////////////////TIMEOUT Seq: " + p.sequence_num +" , Resending..../////////////");
+	        	//System.out.println("//////////TIMEOUT Seq: " + p.sequence_num +" , Resending.." + p.sequence_num +"../////////////");
 	        	//socket.send(packet);
 	        	continue;
 	        }
@@ -130,7 +130,7 @@ public class Client {
 	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 6, 8)));
 	        //System.out.println("Next Packet to Send: " + ack);
 	        nextPacket = ack;
-	        System.out.println("ACK received: " + ack);
+	        //System.out.println("ACK received: " + ack);
 	        socket.close();
 	        if (ack > MAX_SEQ_NUMBER){
 	        	break;

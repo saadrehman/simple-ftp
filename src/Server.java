@@ -51,8 +51,7 @@ public class Server {
 	                
 	                //losePacket?
 	                if (Math.random() <= p){
-	                //if((new BigInteger(Arrays.copyOfRange(buf, 0, 4)).intValue()) == 3){
-	                	System.out.println("//////////////Dropped packet: "+ new BigInteger(Arrays.copyOfRange(buf, 0, 4)).intValue()+ "/////////");
+	                	//System.out.println("//////////////Dropped packet: "+ new BigInteger(Arrays.copyOfRange(buf, 0, 4)).intValue()+ "/////////");
 	                	continue;
 	                }
 	               
@@ -62,9 +61,8 @@ public class Server {
 	                //short type = new BigInteger(Arrays.copyOfRange(buf, 6, 8)).shortValue();
 	                String data = new String(Arrays.copyOfRange(buf, 8, 8 + mss));
 	                
-	                
 	                //Received Packet TODO: Delete this
-	                System.out.println("Received Packet: " + sequenceNum +", Data: " + data);
+	                //System.out.println("Received Packet: " + sequenceNum);
 	                /*
 	                System.out.println(sequenceNum);
 	                System.out.println(checksum);
@@ -74,7 +72,6 @@ public class Server {
 	                	                
 	                //If this is the expected packet and the checksum is valid
 	                if (sequenceNum  == expectedPacket && matchChecksum(buf)){
-	                	//System.out.println("Received: " + data + " Buffer size now: " + receivedData.size());
 	                	
 	                	if (data.contains("\u001a")){
 	                		data = data.replaceAll("\\u001a", "");
@@ -112,7 +109,6 @@ public class Server {
 		while(!receivedData.isEmpty()){
 			content = content + receivedData.pop();
 		}
-		//System.out.println(content);
 		File file = new File(".//" + filename);
 		 
 		if (!file.exists()) { file.createNewFile();	}
@@ -122,7 +118,7 @@ public class Server {
 		bw.write(content);
 		bw.close();
 
-		System.out.println("Download Complete. File is written.");
+		//System.out.println("Download Complete. File is written.");
 		
 	}
 
