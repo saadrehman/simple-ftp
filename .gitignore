@@ -4,6 +4,7 @@
 .classpath
 .project
 .settings
+*cnus*
 # Package Files #
 *.jar
 *.war

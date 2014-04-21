@@ -20,8 +20,11 @@ public class Server {
 	double p;
 	int port;
 
-	public Server() throws Exception {
-		socket = new DatagramSocket(7735);
+	public Server(int port, double p) throws Exception {
+		this.port = port;
+		this.p = p;
+		
+		socket = new DatagramSocket(port);
 		expectedPacket = 0;
 
 		/*
@@ -130,12 +133,15 @@ public class Server {
 		    return;
 		}
 		
-		Server server = new Server();
+		
 		System.out.println("Server is up and running:-\n");
-		server.port = Integer.parseInt(args[0]);
-		server.p = Double.parseDouble(args[2]);
+		int port = Integer.parseInt(args[0]);
+		String filename = args[1];
+		double p = Double.parseDouble(args[2]);
+		
+		Server server = new Server(port, p);
 		server.startListening();
-		server.writeAllDataToFile(args[1]);
+		server.writeAllDataToFile(filename);
 		
 	}
 
