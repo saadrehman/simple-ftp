@@ -79,7 +79,6 @@ public class Client {
 			//TODO Put in the checksum functionality
 		}
 		
-		System.out.println(new String(packet_buffer.getLast().data));
 		file_stream.close();
 	}
 
@@ -89,13 +88,17 @@ public class Client {
 			
 			//ARQ
 			Packet p = packet_buffer.get(nextPacket);
+			//Packet p = packet_buffer.
 			if(nextPacket > start){
+				
+				//TODO see if they change in case of timeout
 				end = end + (nextPacket - start);
 				start = nextPacket;
 			}
 			
 			// get a datagram socket
 	        DatagramSocket socket = new DatagramSocket();
+	        socket.setSoTimeout(500);
 	
 	        // send packet
 	        byte[] buf = new byte[mss + 8]; 
@@ -107,11 +110,19 @@ public class Client {
 	        
 	        InetAddress address = InetAddress.getByName(server_host_name);
 	        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 7735);
+	        System.out.println("SENT  Seq: "+p.sequence_num + ", Data: " + new String(p.data));
 	        socket.send(packet);
 	    
 	        // get ACK
 	        packet = new DatagramPacket(buf, buf.length);
-	        socket.receive(packet);
+	        try {
+	        	socket.receive(packet);
+	        } catch (SocketTimeoutException e) {
+	        	//resend data
+	        	System.out.println("////////////////TIMEOUT Seq: " + p.sequence_num +" , Resending..../////////////");
+	        	//socket.send(packet);
+	        	continue;
+	        }
 	
 		    // display response
 	        int ack = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
@@ -119,7 +130,7 @@ public class Client {
 	        //System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 6, 8)));
 	        //System.out.println("Next Packet to Send: " + ack);
 	        nextPacket = ack;
-	    
+	        System.out.println("ACK received: " + ack);
 	        socket.close();
 	        if (ack > MAX_SEQ_NUMBER){
 	        	break;
@@ -140,7 +151,6 @@ public class Client {
 		String filename = ".//files//" + args[2];
 		int window_size = Integer.valueOf(args[3]);;
 		int mss = Integer.valueOf(args[4]); //bytes
-		mss = 8;
 		
 		Client cli = new Client(window_size, mss);
 		System.out.println("Client is up and running!:\n");
