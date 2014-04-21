@@ -11,7 +11,7 @@ public class Server {
 	
 	protected DatagramSocket socket = null;
 	protected BufferedReader in = null;
-	protected int mss = 1024;
+	protected int mss = 1472;
 	protected boolean keepReceiving = true;
 	protected int expectedPacket;
 	LinkedList<String> receivedData = new LinkedList<String>();
@@ -19,6 +19,7 @@ public class Server {
 	byte[] type = {10, 10};
 	double p;
 	int port;
+	String EOF_TOKEN = "EOF";
 
 	public Server(int port, double p) throws Exception {
 		this.port = port;
@@ -72,11 +73,15 @@ public class Server {
 	                	                
 	                //If this is the expected packet and the checksum is valid
 	                if (sequenceNum  == expectedPacket && matchChecksum(buf)){
-	                	
 	                	if (data.contains("\u001a")){
-	                		data = data.replaceAll("\\u001a", "");
+	                		data = data.replaceAll("\u001a", "");
 	                		keepReceiving = false;
 	                	}
+	                	/*if (data.contains(EOF_TOKEN)){
+	                		data = data.substring(0, data.indexOf(EOF_TOKEN));
+	                		keepReceiving = false;
+	                	}*/
+	                	//System.out.println(data);
 	                	receivedData.add(data);
 	                	expectedPacket++;
 	                }
@@ -92,10 +97,12 @@ public class Server {
 	                int port = packet.getPort();
 	                packet = new DatagramPacket(buf, buf.length, address, port);
 	                socket.send(packet);
+	                //System.out.println("SERVER: I want packet# " + expectedPacket);
+
 	                
 	            } catch (IOException e) {
-	                e.printStackTrace();
-			keepReceiving = false;
+	                e.printStackTrace(System.out);
+	                keepReceiving = false;
 	            }
 	        }
 	        socket.close();
@@ -118,7 +125,7 @@ public class Server {
 		bw.write(content);
 		bw.close();
 
-		//System.out.println("Download Complete. File is written.");
+		System.out.println("Download Complete. File is written.");
 		
 	}
 
