@@ -1,6 +1,8 @@
 import java.io.*;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.math.BigInteger;
 //import java.util.ListIterator;
 import java.net.*;
@@ -10,18 +12,21 @@ import java.nio.ByteBuffer;
 public class Client {
 
 	int mss;
-	int window_size;
+	int windowSize;
 	int start;
 	int end;
 	int requestedPacket;
 	long MAX_SEQ_NUMBER; //The maximum sequence number
 	String EOF_TOKEN = "EOF";
 	LinkedList<Packet> packet_buffer = new LinkedList<Packet>();
-
+	boolean[] timeouts;
+	
 	DatagramSocket socket = new DatagramSocket();
 	String serverName;
 	String filename;
 	int serverPort;
+	
+	boolean debugMode;
 
 	//TODO Remove Packet Class.
 	/* We don't need it because
@@ -57,11 +62,11 @@ public class Client {
 			while(true){
 				int current = requestedPacket;
 				//Just Sliding the window ahead
-				if (requestedPacket > start) {
+				if (requestedPacket > start && end < MAX_SEQ_NUMBER) {
 					end = end + (requestedPacket - start);
 					start = requestedPacket;
 				}
-				// send packet
+				// send all the packets in the window
 				try {
 
 					while (current <= end && current <= MAX_SEQ_NUMBER) {
@@ -77,8 +82,33 @@ public class Client {
 						InetAddress address;
 						address = InetAddress.getByName(serverName);
 						DatagramPacket packet = new DatagramPacket(buf,	buf.length, address, serverPort);
+						
+						//Do nothing if Not timed out
+						if (!timeouts[current % windowSize]){
+							continue;
+						}
 						socket.send(packet);
-						//System.out.println("SENT  Seq: " + p.sequence_num);
+						
+						//Timeout
+						timeouts[current % windowSize] = false;
+						Timer timer = new Timer();
+						
+						final int final_current = current;
+						timer.schedule(new TimerTask() {
+							  @Override
+							  public void run() {
+							    timeouts[final_current % windowSize] = true;
+							    if (final_current >= requestedPacket){
+							    	System.out.println("//////////Timeout, sequence# " + final_current);
+							    }
+							  }
+							}, 2*1000);
+						
+						
+						if (debugMode){ System.out.println("SENT  Seq: " + p.sequence_num);}
+						
+						
+						
 						current++;
 					}
 					/*InetAddress address = InetAddress.getByName(serverName);
@@ -97,10 +127,8 @@ public class Client {
 					 * This is bad logic. Assumes that time required to send all packets
 					 * in the window is insignificant compared to the timeout.
 					 */
-					Thread.sleep(500);
+					//Thread.sleep(500);
 
-				} catch (InterruptedException e) {
-					e.printStackTrace(System.out);
 				} catch (Exception e) {
 					e.printStackTrace(System.out);
 				}
@@ -126,7 +154,9 @@ public class Client {
 				int ack = new BigInteger(Arrays.copyOfRange(packet.getData(), 0, 4)).intValue();
 				//System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 4, 6)));
 				//System.out.println(Arrays.toString(Arrays.copyOfRange(packet.getData(), 6, 8)));
-				//System.out.println("ACK received: " + ack);
+				if (debugMode){
+					System.out.println("ACK received: " + ack);
+				}
 				requestedPacket = ack;
 				if(requestedPacket > MAX_SEQ_NUMBER){
 					break;
@@ -143,11 +173,14 @@ public class Client {
 		start = 0;
 		end = window_size - 1;
 		this.mss = mss;
+		this.windowSize = window_size;
 		requestedPacket = 0;
 		this.socket = new DatagramSocket();
 		this.serverName = serverName;
 		this.serverPort = serverPort;
 		this.filename = filename;
+		timeouts = new boolean[window_size];
+		Arrays.fill(timeouts, true);
 	}
 
 	public void rdt_send() throws Exception	{
@@ -165,9 +198,10 @@ public class Client {
 
 	private void readFileIntoBuffer(String filename)
 			throws FileNotFoundException, IOException {
-
-		InputStream file_stream = new FileInputStream(new File(filename));
-		MAX_SEQ_NUMBER = ((new File(filename).length()) / mss);
+		File file = new File(filename);
+		InputStream file_stream = new FileInputStream(file);
+		long filesize =  file.length();
+		MAX_SEQ_NUMBER = (filesize / mss);
 		byte[] chunk = new byte[mss]; //1 chunk of MSS bytes
 		Arrays.fill(chunk, (byte)'\u001a');
 		int i = 0;
@@ -183,12 +217,12 @@ public class Client {
 			//TODO Put in the checksum functionality
 		}
 		//Appending END_OF_FILE to the last packet
-		//Packet lastPacket = packet_buffer.getLast();
+		Packet lastPacket = packet_buffer.getLast();
 		 
-		//System.arraycopy(EOF_TOKEN.getBytes(), 0, lastPacket.data, mss, EOF_TOKEN.length());
-		//System.out.println(new String(EOF_TOKEN.getBytes()) +" "+ new String(lastPacket.data) 
-		//	+ " " + mss +" "+ EOF_TOKEN.length());
-
+		System.arraycopy(EOF_TOKEN.getBytes(), 0, lastPacket.data, (int) filesize % mss, EOF_TOKEN.length());
+		/*System.out.println(new String(EOF_TOKEN.getBytes()) +" "+ new String(lastPacket.data) 
+			+ " " + mss +" "+ EOF_TOKEN.length());
+		 */
 		file_stream.close();
 	}
 
@@ -206,14 +240,14 @@ public class Client {
 		int mss = Integer.valueOf(args[4]); //bytes
 
 		Client cli = new Client(window_size, mss, server, serverPort, filename);
+		cli.debugMode = false;
 		System.out.println("Client is up and running!:\n");
-
-
 		try {
 			cli.rdt_send();
 		} catch (Exception e) {
 			e.printStackTrace(System.out);
 		}
+		System.out.print("Transmission Complete");
 	}
 
 

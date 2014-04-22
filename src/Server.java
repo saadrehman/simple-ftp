@@ -20,6 +20,8 @@ public class Server {
 	double p;
 	int port;
 	String EOF_TOKEN = "EOF";
+	
+	boolean debugMode;
 
 	public Server(int port, double p) throws Exception {
 		this.port = port;
@@ -52,7 +54,7 @@ public class Server {
 	                
 	                //losePacket?
 	                if (Math.random() <= p){
-	                	//System.out.println("//////////////Dropped packet: "+ new BigInteger(Arrays.copyOfRange(buf, 0, 4)).intValue()+ "/////////");
+                		System.out.println("////////////// Packet loss, sequence number: "+ new BigInteger(Arrays.copyOfRange(buf, 0, 4)).intValue()+ "/////////");
 	                	continue;
 	                }
 	               
@@ -63,7 +65,7 @@ public class Server {
 	                String data = new String(Arrays.copyOfRange(buf, 8, 8 + mss));
 	                
 	                //Received Packet TODO: Delete this
-	                //System.out.println("Received Packet: " + sequenceNum);
+	                if (debugMode) {System.out.println("Received Packet: " + sequenceNum);}
 	                /*
 	                System.out.println(sequenceNum);
 	                System.out.println(checksum);
@@ -73,15 +75,14 @@ public class Server {
 	                	                
 	                //If this is the expected packet and the checksum is valid
 	                if (sequenceNum  == expectedPacket && matchChecksum(buf)){
-	                	if (data.contains("\u001a")){
+	                	/*if (data.contains("\u001a")){
 	                		data = data.replaceAll("\u001a", "");
 	                		keepReceiving = false;
-	                	}
-	                	/*if (data.contains(EOF_TOKEN)){
+	                	}*/
+	                	if (data.contains(EOF_TOKEN)){
 	                		data = data.substring(0, data.indexOf(EOF_TOKEN));
 	                		keepReceiving = false;
-	                	}*/
-	                	//System.out.println(data);
+	                	}
 	                	receivedData.add(data);
 	                	expectedPacket++;
 	                }
@@ -97,8 +98,9 @@ public class Server {
 	                int port = packet.getPort();
 	                packet = new DatagramPacket(buf, buf.length, address, port);
 	                socket.send(packet);
-	                //System.out.println("SERVER: I want packet# " + expectedPacket);
-
+	                if (debugMode){
+	                	System.out.println("SERVER: I want packet# " + expectedPacket);
+	                }
 	                
 	            } catch (IOException e) {
 	                e.printStackTrace(System.out);
@@ -143,6 +145,7 @@ public class Server {
 		double p = Double.parseDouble(args[2]);
 		
 		Server server = new Server(port, p);
+		server.debugMode = false;
 		server.startListening();
 		server.writeAllDataToFile(filename);
 		
